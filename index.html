@@ -169,29 +169,30 @@
             }
         });
 
-        window.botpress.on('webchat:initialized', () => {
-            setTimeout(() => {
-                window.botpress.updateUser({
-                    data: {
-                        "email": user.email,
-                        "isNewUser": userData ? "false" : "true"
-                    }
-                });
+            window.botpress.on('webchat:initialized', () => {
+                setTimeout(() => {
+                    console.log("Syncing email and nudging bot...");
 
-                if (userData && userData.CoachName) {
-                    window.botpress.configure({
-                        "configuration": { "botName": userData.CoachName }
+                    window.botpress.updateUser({
+                        data: {
+                            "email": user.email,
+                            "isNewUser": userData ? "false" : "true"
+                        }
                     });
-                }
 
-                // Fixed: Using sendEvent for v3.5
-                window.botpress.sendPayload({
-                    type: 'text',
-                    text: 'check_email'
-                });
-            }, 2000);
-        });
-    };
+                    if (userData && userData.CoachName) {
+                        window.botpress.configure({
+                            "configuration": { "botName": userData.CoachName }
+                        });
+                    }
+
+                    window.botpress.sendPayload({
+                        type: 'text',
+                        text: 'check_email'
+                    });
+                }, 2000);
+            });
+        };
 
     window.onload = initializeAuth;
 </script>
