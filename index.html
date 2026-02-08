@@ -144,7 +144,8 @@
             let userData = null;
 
             try {
-// No key, no long domain—just the shortcut route
+// This simplified URL works because the apps are linked 
+// and the key is now in your Environment Variables.
 const response = await fetch(`/api/getCoachProfile?email=${user.email}`);
 
                 if (response.ok) {
@@ -180,30 +181,32 @@ const response = await fetch(`/api/getCoachProfile?email=${user.email}`);
                 }
             });
 
-            window.botpress.on('webchat:initialized', () => {
-                setTimeout(() => {
-                    console.log("Syncing email and nudging bot...");
+window.botpress.on('webchat:initialized', () => {
+    setTimeout(() => {
+        console.log("Syncing email and nudging bot...");
 
-                    window.botpress.updateUser({
-                        data: {
-                            "email": user.email,
-                            "isNewUser": userData ? "false" : "true"
-                        }
-                    });
+        // 1. Sync User Data
+        window.botpress.updateUser({
+            data: {
+                "email": user.email,
+                "isNewUser": userData ? "false" : "true"
+            }
+        });
 
-                    if (userData && userData.CoachName) {
-                        window.botpress.configure({
-                            "configuration": { "botName": userData.CoachName }
-                        });
-                    }
-
-                    window.botpress.sendPayload({
-                        type: 'text',
-                        text: 'check_email'
-                    });
-                }, 2000);
+        // 2. Restore the Coach Name (The part I missed!)
+        if (userData && userData.CoachName) {
+            window.botpress.configure({
+                "configuration": { "botName": userData.CoachName }
             });
-        };
+        }
+
+        // 3. Nudge the bot using the v3.5 compatible 'sendEvent'
+        window.botpress.sendEvent({
+            type: 'text',
+            text: 'check_email'
+        });
+    }, 2000);
+});
 
         window.onload = initializeAuth;
     </script>
