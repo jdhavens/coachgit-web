@@ -169,27 +169,25 @@
             }
         });
 
-window.botpress.on('webchat:initialized', () => {
-    setTimeout(() => {
-        console.log("Syncing email and nudging bot...");
+        // This block is now safely INSIDE the loadBotpress function
+        window.botpress.on('webchat:initialized', () => {
+            setTimeout(() => {
+                console.log("Syncing email and nudging bot...");
 
-        window.botpress.updateUser({
-            data: {
-                "email": user.email,
-                "isNewUser": userData ? "false" : "true"
-            }
+                window.botpress.updateUser({
+                    data: {
+                        "email": user.email,
+                        "isNewUser": userData ? "false" : "true"
+                    }
+                });
+
+                window.botpress.sendEvent({
+                    type: 'text',
+                    text: 'check_email'
+                });
+            }, 2000);
         });
-
-        // The "configure" block was causing the crash, so we removed it.
-        // Your "init" function should already be handling the CoachName.
-
-        // Fixed: switched to sendEvent to stop the error
-        window.botpress.sendEvent({
-            type: 'text',
-            text: 'check_email'
-        });
-    }, 2000);
-});
+    }; // <--- THIS is the closing bracket you were missing/misplacing
 
     window.onload = initializeAuth;
 </script>
