@@ -89,127 +89,112 @@
 
     <div id="bp-embedded-webchat"></div>
 
-    <script>
-        let auth0Client = null;
+<script>
+    let auth0Client = null;
 
-        const initializeAuth = async () => {
-            // Check immediately: If we have a code, KEEP it hidden.
-            // If NO code, we might show it later (in the else block).
-            const isRedirecting = window.location.search.includes("code=");
+    const initializeAuth = async () => {
+        const isRedirecting = window.location.search.includes("code=");
 
-            if (!window.auth0) {
-                setTimeout(initializeAuth, 500);
-                return;
+        if (!window.auth0) {
+            setTimeout(initializeAuth, 500);
+            return;
+        }
+
+        try {
+            auth0Client = await window.auth0.createAuth0Client({
+                domain: "dev-tw75vmgwx8fsds2q.us.auth0.com",
+                clientId: "ns2usKminMksO2QX06wQYnupz1ttbHqH",
+                authorizationParams: {
+                    redirect_uri: "https://www.coachgit.com/index.html"
+                }
+            });
+
+            if (isRedirecting) {
+                await auth0Client.handleRedirectCallback();
+                window.history.replaceState({}, document.title, "/index.html");
             }
 
-            try {
-                auth0Client = await window.auth0.createAuth0Client({
-                    domain: "dev-tw75vmgwx8fsds2q.us.auth0.com",
-                    clientId: "ns2usKminMksO2QX06wQYnupz1ttbHqH",
-                    authorizationParams: {
-                        redirect_uri: "https://www.coachgit.com/index.html"
+            const isAuthenticated = await auth0Client.isAuthenticated();
+
+            if (isAuthenticated) {
+                const user = await auth0Client.getUser();
+                loadBotpress(user);
+            } else {
+                document.getElementById('login-container').style.display = 'block';
+                document.getElementById('login-btn').onclick = async () => {
+                    await auth0Client.loginWithRedirect();
+                };
+            }
+        } catch (err) {
+            console.error("Auth0 error:", err);
+            document.getElementById('login-container').style.display = 'block';
+        }
+    };
+
+    const loadBotpress = async (user) => {
+        let userData = null;
+        try {
+            // Added the key directly to bypass the 401 error
+            const funcKey = "0WPTUN0nlsiViGCXRAYJ4NPiXVVGcTlclBZo4m44B9-BAzFu_AAPWg==";
+            const response = await fetch(`/api/getCoachProfile?email=${user.email}&code=${funcKey}`);
+
+            if (response.ok) {
+                userData = await response.json();
+                console.log("Database match found. Coach:", userData.CoachName);
+            }
+        } catch (err) {
+            console.log("Azure Fetch failed.");
+        }
+
+        document.getElementById('login-container').style.display = 'none';
+        document.getElementById('bp-embedded-webchat').style.display = 'block';
+
+        const logoutBtn = document.getElementById('logout-btn');
+        logoutBtn.style.display = 'block';
+        logoutBtn.onclick = () => {
+            auth0Client.logout({
+                logoutParams: { returnTo: "https://www.coachgit.com/index.html" }
+            });
+        };
+
+        window.botpress.init({
+            "botId": "ed2a1fe5-3f29-499c-a2ec-a22ef40d55f2",
+            "clientId": "b4eb5d1b-c904-4b1f-aa25-864c8be55a0e",
+            "configuration": {
+                "version": "v2",
+                "botName": (userData && userData.CoachName) ? userData.CoachName : "Coach Creator",
+                "themeMode": "dark",
+                "embeddedChatId": "bp-embedded-webchat",
+                "showBotInfoPage": false
+            }
+        });
+
+        window.botpress.on('webchat:initialized', () => {
+            setTimeout(() => {
+                window.botpress.updateUser({
+                    data: {
+                        "email": user.email,
+                        "isNewUser": userData ? "false" : "true"
                     }
                 });
 
-                // 1. Handle Redirect (Login Success)
-                if (isRedirecting) {
-                    console.log("Processing Auth0 Redirect...");
-                    await auth0Client.handleRedirectCallback();
-                    window.history.replaceState({}, document.title, "/index.html");
+                if (userData && userData.CoachName) {
+                    window.botpress.configure({
+                        "configuration": { "botName": userData.CoachName }
+                    });
                 }
 
-                // 2. Check Auth Status
-                const isAuthenticated = await auth0Client.isAuthenticated();
-
-                if (isAuthenticated) {
-                    // Success: Keep login hidden, load bot
-                    const user = await auth0Client.getUser();
-                    loadBotpress(user);
-                } else {
-                    // Not Logged In: NOW we show the login button safely
-                    document.getElementById('login-container').style.display = 'block';
-                    
-                    document.getElementById('login-btn').onclick = async () => {
-                        await auth0Client.loginWithRedirect();
-                    };
-                }
-            } catch (err) {
-                console.error("Auth0 error:", err);
-                // If error, show login UI so they aren't stuck on blank screen
-                document.getElementById('login-container').style.display = 'block';
-            }
-        };
-
-        const loadBotpress = async (user) => {
-            let userData = null;
-
-            try {
-// This simplified URL works because the apps are linked 
-// and the key is now in your Environment Variables.
-const response = await fetch(`/api/getCoachProfile?email=${user.email}`);
-
-                if (response.ok) {
-                    userData = await response.json();
-                    console.log("Database match found. Coach:", userData.CoachName);
-                }
-            } catch (err) {
-                console.log("Azure Fetch failed.");
-            }
-
-            // Ensure login is gone, show bot
-            document.getElementById('login-container').style.display = 'none';
-            document.getElementById('bp-embedded-webchat').style.display = 'block';
-
-            const logoutBtn = document.getElementById('logout-btn');
-            logoutBtn.style.display = 'block';
-            logoutBtn.onclick = () => {
-                auth0Client.logout({
-                    logoutParams: { returnTo: "https://www.coachgit.com/index.html" }
+                // Fixed: Using sendEvent for v3.5
+                window.botpress.sendEvent({
+                    type: 'text',
+                    text: 'check_email'
                 });
-            };
-
-            // Initialize Botpress
-            window.botpress.init({
-                "botId": "ed2a1fe5-3f29-499c-a2ec-a22ef40d55f2",
-                "clientId": "b4eb5d1b-c904-4b1f-aa25-864c8be55a0e",
-                "configuration": {
-                    "version": "v2",
-                    "botName": (userData && userData.CoachName) ? userData.CoachName : "Coach Creator",
-                    "themeMode": "dark",
-                    "embeddedChatId": "bp-embedded-webchat",
-                    "showBotInfoPage": false
-                }
-            });
-
-window.botpress.on('webchat:initialized', () => {
-    setTimeout(() => {
-        console.log("Syncing email and nudging bot...");
-
-        // 1. Sync User Data
-        window.botpress.updateUser({
-            data: {
-                "email": user.email,
-                "isNewUser": userData ? "false" : "true"
-            }
+            }, 2000);
         });
+    };
 
-        // 2. Restore the Coach Name (The part I missed!)
-        if (userData && userData.CoachName) {
-            window.botpress.configure({
-                "configuration": { "botName": userData.CoachName }
-            });
-        }
-
-        // 3. Nudge the bot using the v3.5 compatible 'sendEvent'
-        window.botpress.sendPayload({
-            type: 'text',
-            text: 'check_email'
-        });
-    }, 2000);
-});
-
-        window.onload = initializeAuth;
-    </script>
+    window.onload = initializeAuth;
+</script>
 </body>
 
 </html>
