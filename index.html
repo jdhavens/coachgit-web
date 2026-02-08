@@ -144,8 +144,8 @@
             let userData = null;
 
             try {
-                // Remove the 'code=...' part from the URL
-const response = await fetch(`https://coachgit-function-gqfsdke5ahf4gkfq.westus2-01.azurewebsites.net/api/getCoachProfile?email=${user.email}`);
+// No key, no long domain—just the shortcut route
+const response = await fetch(`/api/getCoachProfile?email=${user.email}`);
 
                 if (response.ok) {
                     userData = await response.json();
