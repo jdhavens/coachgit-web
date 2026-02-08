@@ -201,7 +201,7 @@ window.botpress.on('webchat:initialized', () => {
         }
 
         // 3. Nudge the bot using the v3.5 compatible 'sendEvent'
-        window.botpress.sendEvent({
+        window.botpress.sendPayload({
             type: 'text',
             text: 'check_email'
         });
