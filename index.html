@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coachgit - App</title>
+
+    <script src="https://cdn.auth0.com/js/auth0-spa-js/2.0/auth0-spa-js.production.js"></script>
+    <script src="https://cdn.botpress.cloud/webchat/v3.5/inject.js"></script>
+
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #login-container {
+            text-align: center;
+            /* DEFAULT HIDDEN to prevent flicker. We show it only if needed. */
+            display: none; 
+        }
+
+        #login-btn {
+            padding: 12px 24px;
+            background-color: #00a2c7;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        #logout-btn {
+            display: none;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: #ff4b2b;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #bp-embedded-webchat {
+            width: 100%;
+            max-width: 450px;
+            /* Changed to 85vh for taller window */
+            height: 85vh;
+            background-color: #1e1e1e;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            border: 1px solid #333;
+            display: none;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+
+        .highlight {
+            color: #00a2c7;
+        }
+    </style>
+</head>
+
+<body>
+
+    <button id="logout-btn">Log Out</button>
+
+    <div id="login-container">
+        <h1>Coach<span class="highlight">git</span></h1>
+        <p>Please sign in to access your coach.</p>
+        <button id="login-btn">Log In</button>
+    </div>
+
+    <div id="bp-embedded-webchat"></div>
+
+    <script>
+        let auth0Client = null;
+
+        const initializeAuth = async () => {
+            // Check immediately: If we have a code, KEEP it hidden.
+            // If NO code, we might show it later (in the else block).
+            const isRedirecting = window.location.search.includes("code=");
+
+            if (!window.auth0) {
+                setTimeout(initializeAuth, 500);
+                return;
+            }
+
+            try {
+                auth0Client = await window.auth0.createAuth0Client({
+                    domain: "dev-tw75vmgwx8fsds2q.us.auth0.com",
+                    clientId: "ns2usKminMksO2QX06wQYnupz1ttbHqH",
+                    authorizationParams: {
+                        redirect_uri: "https://www.coachgit.com/index.html"
+                    }
+                });
+
+                // 1. Handle Redirect (Login Success)
+                if (isRedirecting) {
+                    console.log("Processing Auth0 Redirect...");
+                    await auth0Client.handleRedirectCallback();
+                    window.history.replaceState({}, document.title, "/index.html");
+                }
+
+                // 2. Check Auth Status
+                const isAuthenticated = await auth0Client.isAuthenticated();
+
+                if (isAuthenticated) {
+                    // Success: Keep login hidden, load bot
+                    const user = await auth0Client.getUser();
+                    loadBotpress(user);
+                } else {
+                    // Not Logged In: NOW we show the login button safely
+                    document.getElementById('login-container').style.display = 'block';
+                    
+                    document.getElementById('login-btn').onclick = async () => {
+                        await auth0Client.loginWithRedirect();
+                    };
+                }
+            } catch (err) {
+                console.error("Auth0 error:", err);
+                // If error, show login UI so they aren't stuck on blank screen
+                document.getElementById('login-container').style.display = 'block';
+            }
+        };
+
+        const loadBotpress = async (user) => {
+            let userData = null;
+
+            try {
+                // Remove the 'code=...' part from the URL
+const response = await fetch(`https://coachgit-function-gqfsdke5ahf4gkfq.westus2-01.azurewebsites.net/api/getCoachProfile?email=${user.email}`);
+
+                if (response.ok) {
+                    userData = await response.json();
+                    console.log("Database match found. Coach:", userData.CoachName);
+                }
+            } catch (err) {
+                console.log("Azure Fetch failed.");
+            }
+
+            // Ensure login is gone, show bot
+            document.getElementById('login-container').style.display = 'none';
+            document.getElementById('bp-embedded-webchat').style.display = 'block';
+
+            const logoutBtn = document.getElementById('logout-btn');
+            logoutBtn.style.display = 'block';
+            logoutBtn.onclick = () => {
+                auth0Client.logout({
+                    logoutParams: { returnTo: "https://www.coachgit.com/index.html" }
+                });
+            };
+
+            // Initialize Botpress
+            window.botpress.init({
+                "botId": "ed2a1fe5-3f29-499c-a2ec-a22ef40d55f2",
+                "clientId": "b4eb5d1b-c904-4b1f-aa25-864c8be55a0e",
+                "configuration": {
+                    "version": "v2",
+                    "botName": (userData && userData.CoachName) ? userData.CoachName : "Coach Creator",
+                    "themeMode": "dark",
+                    "embeddedChatId": "bp-embedded-webchat",
+                    "showBotInfoPage": false
+                }
+            });
+
+            window.botpress.on('webchat:initialized', () => {
+                setTimeout(() => {
+                    console.log("Syncing email and nudging bot...");
+
+                    window.botpress.updateUser({
+                        data: {
+                            "email": user.email,
+                            "isNewUser": userData ? "false" : "true"
+                        }
+                    });
+
+                    if (userData && userData.CoachName) {
+                        window.botpress.configure({
+                            "configuration": { "botName": userData.CoachName }
+                        });
+                    }
+
+                    window.botpress.sendPayload({
+                        type: 'text',
+                        text: 'check_email'
+                    });
+                }, 2000);
+            });
+        };
+
+        window.onload = initializeAuth;
+    </script>
+</body>
+
+</html>
+
