@@ -1,0 +1,17 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html"
+  },
+  "auth": {
+    "identityProviders": {
+      "azureActiveDirectory": null
+    }
+  },
+  "routes": [
+    {
+      "route": "/api/*",
+      "methods": ["GET", "POST"],
+      "allowedRoles": ["anonymous", "authenticated"]
+    }
+  ]
+}
