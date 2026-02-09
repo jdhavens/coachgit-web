@@ -131,21 +131,25 @@
         }
     };
 
-    const loadBotpress = async (user) => {
+const loadBotpress = async (user) => {
         let userData = null;
+        
+        // 1. Get the Data First
         try {
-            // Added the key directly to bypass the 401 error
-            const funcKey = "0WPTUN0nlsiViGCXRAYJ4NPiXVVGcTlclBZo4m44B9-BAzFu_AAPWg==";
-            const response = await fetch(`/api/getCoachProfile?email=${user.email}&code=${funcKey}`);
+            // Note: Make sure your Function is set to 'Anonymous' so we don't need the key
+            const response = await fetch(`/api/getCoachProfile?email=${user.email}`);
 
             if (response.ok) {
                 userData = await response.json();
-                console.log("Database match found. Coach:", userData.CoachName);
+                console.log("Database match found:", userData.CoachName);
+            } else {
+                console.warn("User not found in DB, defaulting to new user.");
             }
         } catch (err) {
-            console.log("Azure Fetch failed.");
+            console.error("Azure Fetch failed:", err);
         }
 
+        // 2. Show the Chat UI
         document.getElementById('login-container').style.display = 'none';
         document.getElementById('bp-embedded-webchat').style.display = 'block';
 
@@ -157,21 +161,50 @@
             });
         };
 
+        // 3. CRITICAL FIX: Set up the Listener BEFORE initializing
+        // This ensures we catch the 'webchat:initialized' event 100% of the time.
+        window.botpress.on('webchat:initialized', () => {
+            console.log("Bot initialized. Waiting 1s before syncing...");
+            
+            setTimeout(async () => {
+                console.log("Syncing user data...");
+                
+                // Send the data securely
+                await window.botpress.updateUser({
+                    data: {
+                        "email": user.email,
+                        "name": user.name || user.nickname,
+                        "isNewUser": userData ? "false" : "true",
+                        "CoachName": (userData && userData.CoachName) ? userData.CoachName : "Default Coach"
+                    }
+                });
+
+                console.log("Data synced. Waking up bot...");
+
+                // Wake up the bot
+                window.botpress.sendEvent({
+                    type: 'text',
+                    text: 'check_email'
+                });
+            }, 1000); 
+        });
+
+        // 4. Initialize the Bot (Now safe to do because the listener is ready)
         window.botpress.init({
             "botId": "ed2a1fe5-3f29-499c-a2ec-a22ef40d55f2",
             "clientId": "b4eb5d1b-c904-4b1f-aa25-864c8be55a0e",
             "configuration": {
                 "version": "v2",
+                // Set the visual name immediately if we have it
                 "botName": (userData && userData.CoachName) ? userData.CoachName : "Coach Creator",
                 "themeMode": "dark",
                 "embeddedChatId": "bp-embedded-webchat",
                 "showBotInfoPage": false
             }
         });
-
+    };
         // This block is now safely INSIDE the loadBotpress function
 // ... (botpress init code above) ...
-
         // This block is inside loadBotpress
         window.botpress.on('webchat:initialized', () => {
             setTimeout(async () => {
@@ -192,6 +225,7 @@
                 });
             }, 1000);
         });
+
 
     }; // <--- YOU MUST HAVE THIS BRACKET to close 'const loadBotpress = async (user) => {'
 
