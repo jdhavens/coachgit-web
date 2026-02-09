@@ -170,24 +170,28 @@
         });
 
         // This block is now safely INSIDE the loadBotpress function
-        window.botpress.on('webchat:initialized', () => {
-            setTimeout(() => {
-                console.log("Syncing email and nudging bot...");
+// 1. We make this function 'async' so we can use 'await'
+window.botpress.on('webchat:initialized', () => {
+    setTimeout(async () => {
+        console.log("Syncing email...");
 
-                window.botpress.updateUser({
-                    data: {
-                        "email": user.email,
-                        "isNewUser": userData ? "false" : "true"
-                    }
-                });
-
-                window.botpress.sendEvent({
-                    type: 'text',
-                    text: 'check_email'
-                });
-            }, 2000);
+        // 2. We add 'await'. This pauses the code until the data is fully sent.
+        await window.botpress.updateUser({
+            data: {
+                "email": user.email,
+                "isNewUser": userData ? "false" : "true"
+            }
         });
-    }; // <--- THIS is the closing bracket you were missing/misplacing
+
+        console.log("Data synced. Nudging bot...");
+
+        // 3. NOW we wake the bot, only after the data is safe.
+        window.botpress.sendEvent({
+            type: 'text',
+            text: 'check_email'
+        });
+    }, 1000);
+}); // <--- THIS is the closing bracket you were missing/misplacing
 
     window.onload = initializeAuth;
 </script>
