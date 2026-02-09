@@ -105,13 +105,13 @@
                 domain: "dev-tw75vmgwx8fsds2q.us.auth0.com",
                 clientId: "ns2usKminMksO2QX06wQYnupz1ttbHqH",
                 authorizationParams: {
-                    redirect_uri: "https://www.coachgit.com/index.html"
+                    redirect_uri: "https://www.coachgit.com"
                 }
             });
 
             if (isRedirecting) {
                 await auth0Client.handleRedirectCallback();
-                window.history.replaceState({}, document.title, "/index.html");
+                window.history.replaceState({}, document.title, "/");
             }
 
             const isAuthenticated = await auth0Client.isAuthenticated();
