@@ -170,28 +170,30 @@
         });
 
         // This block is now safely INSIDE the loadBotpress function
-// 1. We make this function 'async' so we can use 'await'
-window.botpress.on('webchat:initialized', () => {
-    setTimeout(async () => {
-        console.log("Syncing email...");
+// ... (botpress init code above) ...
 
-        // 2. We add 'await'. This pauses the code until the data is fully sent.
-        await window.botpress.updateUser({
-            data: {
-                "email": user.email,
-                "isNewUser": userData ? "false" : "true"
-            }
+        // This block is inside loadBotpress
+        window.botpress.on('webchat:initialized', () => {
+            setTimeout(async () => {
+                console.log("Syncing email...");
+
+                await window.botpress.updateUser({
+                    data: {
+                        "email": user.email,
+                        "isNewUser": userData ? "false" : "true"
+                    }
+                });
+
+                console.log("Data synced. Nudging bot...");
+
+                window.botpress.sendEvent({
+                    type: 'text',
+                    text: 'check_email'
+                });
+            }, 1000);
         });
 
-        console.log("Data synced. Nudging bot...");
-
-        // 3. NOW we wake the bot, only after the data is safe.
-        window.botpress.sendEvent({
-            type: 'text',
-            text: 'check_email'
-        });
-    }, 1000);
-}); // <--- THIS is the closing bracket you were missing/misplacing
+    }; // <--- YOU MUST HAVE THIS BRACKET to close 'const loadBotpress = async (user) => {'
 
     window.onload = initializeAuth;
 </script>
