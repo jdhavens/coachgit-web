@@ -131,25 +131,29 @@
         }
     };
 
-const loadBotpress = async (user) => {
+    const loadBotpress = async (user) => {
         let userData = null;
         
-        // 1. Get the Data First
+        // --- 1. Get the Data (NOW WITH KEY!) ---
         try {
-            // Note: Make sure your Function is set to 'Anonymous' so we don't need the key
-            const response = await fetch(`/api/getCoachProfile?email=${user.email}`);
+            // Use the full URL and the KEY you found in Azure
+            const functionUrl = "https://coachgit-function-gqfsdke5ahf4gkfq.westus2-01.azurewebsites.net/api/getCoachProfile";
+            const functionKey = "HvBUhWrJKgFPBHBi7tq7ZuM5LX5Gqjz_ZUe6Gu5EFR5uAzFuvHBQ9Q==";
+            
+            // We append the key so your website is allowed in
+            const response = await fetch(`${functionUrl}?code=${functionKey}&email=${user.email}`);
 
             if (response.ok) {
                 userData = await response.json();
                 console.log("Database match found:", userData.CoachName);
             } else {
-                console.warn("User not found in DB, defaulting to new user.");
+                console.warn("User not found or 401 Error.");
             }
         } catch (err) {
             console.error("Azure Fetch failed:", err);
         }
 
-        // 2. Show the Chat UI
+        // --- 2. Show the Chat UI ---
         document.getElementById('login-container').style.display = 'none';
         document.getElementById('bp-embedded-webchat').style.display = 'block';
 
@@ -161,8 +165,7 @@ const loadBotpress = async (user) => {
             });
         };
 
-        // 3. CRITICAL FIX: Set up the Listener BEFORE initializing
-        // This ensures we catch the 'webchat:initialized' event 100% of the time.
+        // --- 3. The Listener (ONLY ONE!) ---
         window.botpress.on('webchat:initialized', () => {
             console.log("Bot initialized. Waiting 1s before syncing...");
             
@@ -175,6 +178,7 @@ const loadBotpress = async (user) => {
                         "email": user.email,
                         "name": user.name || user.nickname,
                         "isNewUser": userData ? "false" : "true",
+                        // This ensures the bot gets the name immediately
                         "CoachName": (userData && userData.CoachName) ? userData.CoachName : "Default Coach"
                     }
                 });
@@ -189,45 +193,19 @@ const loadBotpress = async (user) => {
             }, 1000); 
         });
 
-        // 4. Initialize the Bot (Now safe to do because the listener is ready)
+        // --- 4. Initialize the Bot ---
         window.botpress.init({
             "botId": "ed2a1fe5-3f29-499c-a2ec-a22ef40d55f2",
             "clientId": "b4eb5d1b-c904-4b1f-aa25-864c8be55a0e",
             "configuration": {
                 "version": "v2",
-                // Set the visual name immediately if we have it
                 "botName": (userData && userData.CoachName) ? userData.CoachName : "Coach Creator",
                 "themeMode": "dark",
                 "embeddedChatId": "bp-embedded-webchat",
                 "showBotInfoPage": false
             }
         });
-
-        // This block is now safely INSIDE the loadBotpress function
-// ... (botpress init code above) ...
-        // This block is inside loadBotpress
-        window.botpress.on('webchat:initialized', () => {
-            setTimeout(async () => {
-                console.log("Syncing email...");
-
-                await window.botpress.updateUser({
-                    data: {
-                        "email": user.email,
-                        "isNewUser": userData ? "false" : "true"
-                    }
-                });
-
-                console.log("Data synced. Nudging bot...");
-
-                window.botpress.sendEvent({
-                    type: 'text',
-                    text: 'check_email'
-                });
-            }, 1000);
-        });
-
-
-    }; // <--- YOU MUST HAVE THIS BRACKET to close 'const loadBotpress = async (user) => {'
+    };
 
     window.onload = initializeAuth;
 </script>
