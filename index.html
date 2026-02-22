@@ -1,7 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
-    
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,7 +23,6 @@
 
         #login-container {
             text-align: center;
-            /* DEFAULT HIDDEN to prevent flicker. We show it only if needed. */
             display: none; 
         }
 
@@ -57,7 +54,6 @@
         #bp-embedded-webchat {
             width: 100%;
             max-width: 450px;
-            /* Changed to 85vh for taller window */
             height: 85vh;
             background-color: #1e1e1e;
             border-radius: 12px;
@@ -67,14 +63,8 @@
             display: none;
         }
 
-        h1 {
-            margin-bottom: 20px;
-            font-size: 2rem;
-        }
-
-        .highlight {
-            color: #00a2c7;
-        }
+        h1 { margin-bottom: 20px; font-size: 2rem; }
+        .highlight { color: #00a2c7; }
     </style>
 </head>
 
@@ -133,28 +123,7 @@
     };
 
     const loadBotpress = async (user) => {
-        let userData = null;
-        
-        // --- 1. Get the Data (NOW WITH KEY!) ---
-        try {
-            // Use the full URL and the KEY you found in Azure
-            const functionUrl = "https://coachgit-function-gqfsdke5ahf4gkfq.westus2-01.azurewebsites.net/api/getCoachProfile";
-            const functionKey = "HvBUhWrJKgFPBHBi7tq7ZuM5LX5Gqjz_ZUe6Gu5EFR5uAzFuvHBQ9Q==";
-            
-            // We append the key so your website is allowed in
-            const response = await fetch(`${functionUrl}?code=${functionKey}&email=${user.email}`);
-
-            if (response.ok) {
-                userData = await response.json();
-                console.log("Database match found:", userData.CoachName);
-            } else {
-                console.warn("User not found or 401 Error.");
-            }
-        } catch (err) {
-            console.error("Azure Fetch failed:", err);
-        }
-
-        // --- 2. Show the Chat UI ---
+        // --- 1. Show UI Immediately ---
         document.getElementById('login-container').style.display = 'none';
         document.getElementById('bp-embedded-webchat').style.display = 'block';
 
@@ -166,68 +135,42 @@
             });
         };
 
-        // --- 3. The Listener (ONLY ONE!) ---
+        // --- 2. The Listener ---
         window.botpress.on('webchat:initialized', () => {
-            console.log("Bot initialized. Waiting 1s before syncing...");
+            console.log("Webchat initialized. Syncing email...");
             
             setTimeout(async () => {
-                console.log("Syncing user data...");
-                
-                // Send the data securely
+                // We only pass the basics. Botpress will handle the Azure check.
                 await window.botpress.updateUser({
                     data: {
                         "email": user.email,
-                        "name": user.name || user.nickname,
-                        "isNewUser": userData ? "false" : "true",
-                        // This ensures the bot gets the name immediately
-                        "CoachName": (userData && userData.CoachName) ? userData.CoachName : "Default Coach"
+                        "firstName": user.given_name || user.nickname || "User"
                     }
                 });
 
-                console.log("Data synced. Waking up bot...");
-
-                // Wake up the bot
+                // Trigger the 'check_email' intent in your bot
                 window.botpress.sendEvent({
                     type: 'text',
                     text: 'check_email'
                 });
-            }, 1000); 
+            }, 500); 
         });
 
-        // --- 4. Initialize the Bot ---
-       window.botpress.init({
-  "botId": "ed2a1fe5-3f29-499c-a2ec-a22ef40d55f2",
-  "configuration": {
-    "version": "v2",
-    "botName": "Coach Rob",
-    "botAvatar": "https://files.bpcontent.cloud/2026/01/18/21/20260118212457-SN7T3D5M.png",
-    "website": {},
-    "email": {},
-    "phone": {},
-    "termsOfService": {},
-    "privacyPolicy": {},
-    "color": "#00a2c7",
-    "variant": "solid",
-    "headerVariant": "glass",
-    "themeMode": "dark",
-    "fontFamily": "Sometype Mono",
-    "radius": 0.5,
-    "feedbackEnabled": false,
-    "footer": "CoachGit.com",
-    "soundEnabled": false,
-    "embeddedChatId": "bp-embedded-webchat",
-    "proactiveMessageEnabled": false,
-    "proactiveBubbleMessage": "Hi! ðŸ‘‹ Need help?",
-    "proactiveBubbleTriggerType": "afterDelay",
-    "proactiveBubbleDelayTime": 10,
-    "conversationHistory": false
-  },
-  "clientId": "b4eb5d1b-c904-4b1f-aa25-864c8be55a0e"
-});
+        // --- 3. Initialize the Bot ---
+        window.botpress.init({
+            "botId": "ed2a1fe5-3f29-499c-a2ec-a22ef40d55f2",
+            "clientId": "b4eb5d1b-c904-4b1f-aa25-864c8be55a0e",
+            "configuration": {
+                "version": "v2",
+                "botName": "Coach Rob", // Static name until profile is loaded inside the bot
+                "themeMode": "dark",
+                "embeddedChatId": "bp-embedded-webchat",
+                "showBotInfoPage": false
+            }
+        });
+    };
 
     window.onload = initializeAuth;
 </script>
 </body>
-
 </html>
-
